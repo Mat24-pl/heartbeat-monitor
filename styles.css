@@ -1,0 +1,82 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #000000;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+}
+
+.font-digital {
+    font-family: 'Share Tech Mono', monospace;
+}
+
+/* Glow effects matching clinical monitor luminescence */
+.glow-green {
+    text-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
+}
+
+.glow-yellow {
+    text-shadow: 0 0 8px rgba(234, 179, 8, 0.7);
+}
+
+.glow-white {
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+}
+
+.glow-red {
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+}
+
+/* CRT Simulation */
+.scanlines {
+    position: relative;
+    overflow: hidden;
+}
+
+.scanlines::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    z-index: 30;
+    background-size: 100% 4px, 6px 100%;
+    pointer-events: none;
+}
+
+/* Alarm flashing animation styles */
+@keyframes alarm-flash-red {
+
+    0%,
+    100% {
+        background-color: rgba(239, 68, 68, 0.35);
+    }
+
+    50% {
+        background-color: transparent;
+    }
+}
+
+.alarm-active-red {
+    animation: alarm-flash-red 0.8s infinite;
+    border: 2px solid #ef4444 !important;
+}
+
+@keyframes text-flash-red {
+
+    0%,
+    100% {
+        color: #ef4444;
+    }
+
+    50% {
+        color: #fca5a5;
+    }
+}
+
+.text-alarm-red {
+    animation: text-flash-red 0.8s infinite;
+}

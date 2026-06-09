@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Cardiomonitor by matit09</title>
+        <link rel="icon" href="fav.png" type="image/png">
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <!-- Google Fonts for digital feel -->
+        <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="styles.css" type="text/css">
+    </head>
+    <body class="text-white h-screen flex flex-col justify-between p-2 bg-black">
+
+        <!-- TOP HEADER BAR -->
+        <header
+            class="h-8 flex justify-between items-center px-4 bg-zinc-900/90 border-b border-zinc-800 text-[11px] text-zinc-400">
+            <div class="flex items-center space-x-6">
+                <span class="font-bold text-emerald-500 tracking-wider">Monitor</span>
+                <div class="flex items-center space-x-2">
+                    <span>ID Pacjenta: <strong class="text-white">unknown</strong></span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-6">
+                <div id="alarm-indicator" class="px-2 py-0.5 rounded bg-red-600 text-white font-bold hidden animate-pulse">
+                    !!!ALARM!!!
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-zinc-500">Tryb:</span>
+                    <span class="text-white px-1.5 py-0.5 bg-zinc-800 rounded">Demonstracja</span>
+                </div>
+                <span id="current-date-time" class="font-mono">02/12/17 02:22:15 PM</span>
+            </div>
+        </header>
+
+        <!-- MAIN DISPLAY GRID -->
+        <main
+            class="flex-grow grid grid-cols-12 gap-2 p-2 scanlines bg-black rounded-lg border border-zinc-900 overflow-hidden relative my-1 h-[calc(100vh-105px)]">
+
+            <!-- LEFT PANEL: Real-time Waveforms (9/12 Columns) -->
+            <section class="col-span-9 flex flex-col justify-between h-full space-y-2 pr-1">
+
+                <!-- ECG Waveform Box -->
+                <div
+                    class="relative flex-[1.2] bg-zinc-950/70 rounded border border-zinc-900/60 flex flex-col justify-between overflow-hidden min-h-[80px]">
+                    <div class="absolute top-2 left-3 z-20 flex items-center space-x-2">
+                        <span class="text-green-500 font-bold text-sm tracking-wide">I</span>
+                        <span class="text-[10px] text-green-600">1.0mV</span>
+                        <svg class="w-6 h-4 text-green-500" viewBox="0 0 24 16" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <path d="M 0 12 L 8 12 L 8 4 L 16 4 L 16 12 L 24 12" />
+                        </svg>
+                    </div>
+                    <div class="absolute inset-0 w-full h-full">
+                        <canvas id="canvas-ecg" class="absolute inset-0 w-full h-full block z-10"></canvas>
+                    </div>
+                </div>
+
+                <!-- SpO2 (Pleth) Waveform Box -->
+                <div
+                    class="relative flex-1 bg-zinc-950/70 rounded border border-zinc-900/60 flex flex-col justify-between overflow-hidden min-h-[70px]">
+                    <div class="absolute top-2 left-3 z-20 flex items-center space-x-2">
+                        <span class="text-yellow-500 font-bold text-sm tracking-wide">Pleth</span>
+                    </div>
+                    <div class="absolute inset-0 w-full h-full">
+                        <canvas id="canvas-pleth" class="absolute inset-0 w-full h-full block z-10"></canvas>
+                    </div>
+                </div>
+
+                <!-- etCO2 Waveform Box -->
+                <div
+                    class="relative flex-1 bg-zinc-950/70 rounded border border-zinc-900/60 flex flex-col justify-between overflow-hidden min-h-[70px]">
+                    <div class="absolute top-2 left-3 z-20 flex items-center space-x-4">
+                        <span class="text-white font-bold text-sm tracking-wide">CO<sub>2</sub></span>
+                        <div class="flex flex-col text-[8px] text-zinc-500 font-mono leading-none">
+                            <span>50</span>
+                            <span class="my-1">25</span>
+                            <span>0</span>
+                        </div>
+                    </div>
+                    <div class="absolute inset-0 w-full h-full">
+                        <canvas id="canvas-co2" class="absolute inset-0 w-full h-full block z-10"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bottom Left Multi-Parameter Grid (NIBP, Pulse, awRR, Temp) -->
+                <div class="h-28 grid grid-cols-4 gap-2 flex-shrink-0">
+                    <!-- NIBP (Red) -->
+                    <div id="param-nbp"
+                        class="bg-zinc-950/90 border border-zinc-900/80 rounded p-2 flex flex-col justify-between relative transition-colors duration-200">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-red-500 font-bold text-[11px] tracking-wide">NIBP</span>
+                                <span class="text-[8px] text-zinc-400 block font-mono">Manual 02:22 PM</span>
+                            </div>
+                            <div class="text-[9px] text-red-700 font-mono leading-none text-right">
+                                <div id="disp-limit-bpsys-max">160</div>
+                                <div class="mt-0.5" id="disp-limit-bpdia-min">60</div>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-start space-x-1 pl-1">
+                            <span class="text-[9px] text-red-500 self-end mr-1">Sys.</span>
+                            <span id="val-nbp"
+                                class="text-3xl font-extrabold font-digital text-red-500 glow-red leading-none">60/40</span>
+                        </div>
+                        <div class="flex justify-between items-center text-red-500">
+                            <span class="text-[9px] text-zinc-500">Średnie (MAP)</span>
+                            <span id="val-nbp-mean" class="font-bold font-digital text-base">(47)</span>
+                        </div>
+                    </div>
+
+                    <!-- Pulse (Yellow) -->
+                    <div id="param-pulse"
+                        class="bg-zinc-950/90 border border-zinc-900/80 rounded p-2 flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-yellow-500 font-bold text-[11px] tracking-wide">Puls</span>
+                            <div class="text-[9px] text-yellow-700 font-mono leading-none text-right">
+                                <div id="disp-limit-pulse-max">160</div>
+                                <div class="mt-0.5" id="disp-limit-pulse-min">110</div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <span id="val-pulse"
+                                class="text-4xl font-extrabold font-digital text-yellow-500 glow-yellow leading-none">119</span>
+                        </div>
+                        <div class="text-[9px] text-zinc-500 text-right">bpm</div>
+                    </div>
+
+                    <!-- awRR (White) -->
+                    <div id="param-awrr"
+                        class="bg-zinc-950/90 border border-zinc-900/80 rounded p-2 flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-white font-bold text-[11px] tracking-wide">awRR</span>
+                            <div class="text-[9px] text-zinc-500 font-mono leading-none text-right">
+                                <div id="disp-limit-awrr-max">60</div>
+                                <div class="mt-0.5" id="disp-limit-awrr-min">10</div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <span id="val-awrr"
+                                class="text-4xl font-extrabold font-digital text-white glow-white leading-none">40</span>
+                        </div>
+                        <div class="text-[9px] text-zinc-500 text-right">rpm</div>
+                    </div>
+
+                    <!-- Tblood (Green) -->
+                    <div id="param-temp"
+                        class="bg-zinc-950/90 border border-zinc-900/80 rounded p-2 flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-green-500 font-bold text-[11px] tracking-wide">Temperatura</span>
+                            <div class="text-[9px] text-green-700 font-mono leading-none text-right">
+                                <div id="disp-limit-temp-max">101.0</div>
+                                <div class="mt-0.5" id="disp-limit-temp-min">96.0</div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <span id="val-temp"
+                                class="text-4xl font-extrabold font-digital text-green-500 glow-green leading-none">99.0</span>
+                        </div>
+                        <div class="text-[9px] text-zinc-500 text-right">°F</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT PANEL: Numeric Param Blocks (3/12 Columns) -->
+            <section class="col-span-3 flex flex-col justify-between h-full space-y-2 border-l border-zinc-900 pl-2">
+
+                <!-- HR Block (Green) -->
+                <div id="param-hr"
+                    class="flex-[1.2] bg-zinc-950/90 border border-zinc-900/80 rounded p-2 flex flex-col justify-between min-h-[80px]">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-green-500 font-bold text-xs tracking-wider block">HR</span>
+                            <span class="text-[9px] text-green-700 block">Ekg</span>
+                        </div>
+                        <div class="text-[10px] text-green-700 font-mono leading-none text-right">
+                            <div id="disp-limit-hr-max">160</div>
+                            <div class="mt-0.5" id="disp-limit-hr-min">110</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center items-center py-1 relative">
+                        <span id="heart-beat-icon"
+                            class="absolute left-1 text-green-500 text-sm transition-all duration-100 opacity-20">❤️</span>
+                        <span id="val-hr"
+                            class="text-6xl font-extrabold font-digital text-green-500 glow-green leading-none">119</span>
+                    </div>
+                    <div class="text-right text-[9px] text-green-700">/min</div>
+                </div>
+
+                <!-- SpO2 Block (Yellow) -->
+                <div id="param-spo2"
+                    class="flex-1 bg-zinc-950/90 border border-zinc-900/80 rounded p-2 flex flex-col justify-between min-h-[70px]">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-yellow-500 font-bold text-xs tracking-wider block">SpO<sub>2</sub></span>
+                        </div>
+                        <div class="text-[10px] text-yellow-700 font-mono leading-none text-right">
+                            <div id="disp-limit-spo2-max">100</div>
+                            <div class="mt-0.5" id="disp-limit-spo2-min">92</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center items-center py-1">
+                        <span id="val-spo2"
+                            class="text-6xl font-extrabold font-digital text-yellow-500 glow-yellow leading-none">99</span>
+                    </div>
+                    <div class="text-right text-[9px] text-yellow-700">%</div>
+                </div>
+
+                <!-- etCO2 Block (White) -->
+                <div id="param-etco2"
+                    class="flex-1 bg-zinc-950/90 border border-zinc-900/80 rounded p-2 flex flex-col justify-between min-h-[70px]">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-white font-bold text-xs tracking-wider block">etCO<sub>2</sub></span>
+                        </div>
+                        <div class="text-[10px] text-zinc-500 font-mono leading-none text-right">
+                            <div id="disp-limit-etco2-max">65</div>
+                            <div class="mt-0.5" id="disp-limit-etco2-min">25</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center items-center py-1">
+                        <span id="val-etco2"
+                            class="text-6xl font-extrabold font-digital text-white glow-white leading-none">36</span>
+                    </div>
+                    <div class="flex justify-between items-end text-[9px] text-zinc-500 leading-none">
+                        <div class="flex items-center space-x-1">
+                            <span class="text-[8px]">imCO<sub>2</sub></span>
+                            <span class="text-white font-bold font-digital text-[10px]">4</span>
+                        </div>
+                        <span>mmHg</span>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- FOOTER CONTROLS / NAVIGATION PANEL -->
+        <footer class="h-14 grid grid-cols-12 gap-1.5 text-xs text-zinc-300 font-semibold flex-shrink-0">
+            <button id="btn-silence"
+                class="col-span-2 bg-yellow-500 text-black rounded flex flex-col items-center justify-center p-1 active:scale-95 transition-all hover:bg-yellow-400">
+                <span class="text-base" id="icon-silence">🔕</span>
+                <span class="uppercase tracking-wider font-bold text-[9px]" id="text-silence">Wycisz Alarm</span>
+            </button>
+            <button id="btn-nibp"
+                class="col-span-2 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 active:scale-95 rounded flex flex-col items-center justify-center p-1 transition-all">
+                <span class="text-base">🩸</span>
+                <span class="uppercase tracking-wider text-[9px]">Start/Stop NIBP</span>
+            </button>
+            <button onclick="toggleControlPanel()"
+                class="col-span-2 bg-indigo-700 text-white hover:bg-indigo-600 active:scale-95 rounded flex flex-col items-center justify-center p-1 transition-all">
+                <span class="text-base">⚙️</span>
+                <span class="uppercase tracking-wider text-[9px]">Ustawienia Pacjenta</span>
+            </button>
+
+            <div class="col-span-4 bg-zinc-900/40 border border-zinc-800/80 rounded grid grid-cols-4 gap-1 p-1">
+                <button onclick="toggleControlPanel(); selectPanelTab('alarms-tab')"
+                    class="bg-zinc-800/60 rounded flex items-center justify-center hover:bg-zinc-800 text-[9px] uppercase text-red-400 font-bold">Zarządzaj
+                    Alarmami</button>
+                <button
+                    class="bg-zinc-800/60 rounded flex items-center justify-center hover:bg-zinc-800 text-[9px] uppercase opacity-50"
+                    onclick="alert('Opcja niedostępna');">Zapis</button>
+                <button
+                    class="bg-zinc-800/60 rounded flex items-center justify-center hover:bg-zinc-800 text-[9px] uppercase opacity-50"
+                    onclick="alert('Opcja niedostępna');">Menu</button>
+                <button
+                    class="bg-zinc-800/60 rounded flex items-center justify-center hover:bg-zinc-800 text-[9px] uppercase opacity-50"
+                    onclick="alert('Opcja niedostępna');">Ustaw. fal</button>
+            </div>
+
+            <button id="btn-play-sound"
+                class="col-span-2 bg-emerald-600 text-white rounded flex flex-col items-center justify-center p-1 active:scale-95 transition-all hover:bg-emerald-500">
+                <span class="text-base">🔊</span>
+                <span class="uppercase tracking-wider text-[9px]" id="sound-status-text">Włącz Dźwięk</span>
+            </button>
+        </footer>
+
+        <!-- INTERACTIVE SETTINGS & ALARMS DRAWER -->
+        <aside id="control-panel"
+            class="fixed top-0 right-0 h-full w-96 bg-zinc-900 border-l border-zinc-800 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out z-50 p-5 flex flex-col justify-between overflow-y-auto">
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span>⚙️</span> Panel Kontrolny
+                    </h2>
+                    <button onclick="toggleControlPanel()" class="text-zinc-400 hover:text-white text-2xl">&times;</button>
+                </div>
+
+                <!-- Tab Navigation -->
+                <div class="flex border-b border-zinc-800 mb-4 text-xs">
+                    <button id="btn-tab-patient" onclick="selectPanelTab('patient-tab')"
+                        class="flex-1 py-2 text-center border-b-2 border-indigo-500 font-bold text-white">
+                        👤 Stan Pacjenta
+                    </button>
+                    <button id="btn-tab-alarms" onclick="selectPanelTab('alarms-tab')"
+                        class="flex-1 py-2 text-center border-b-2 border-transparent text-zinc-400 font-bold hover:text-white">
+                        🚨 Zarządzanie Alarmami
+                    </button>
+                </div>
+
+                <!-- TAB 1: Patient Vital Signs Generator -->
+                <div id="panel-patient-tab" class="space-y-4">
+                    <div class="bg-zinc-950 p-2.5 rounded border border-zinc-850">
+                        <label class="block text-[10px] font-semibold uppercase text-zinc-400 mb-2">Predefiniowane
+                            Scenariusze</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="loadScenario('norm')"
+                                class="bg-zinc-800 hover:bg-emerald-700/50 hover:border-emerald-600 py-1.5 px-2 rounded border border-zinc-700 text-left text-xs transition-all">
+                                🟢 Stabilny stan
+                            </button>
+                            <button onclick="loadScenario('hypotension')"
+                                class="bg-zinc-800 hover:bg-red-700/50 hover:border-red-600 py-1.5 px-2 rounded border border-zinc-700 text-left text-xs transition-all text-red-400">
+                                🔴 Hipotensja
+                            </button>
+                            <button onclick="loadScenario('tachycardia')"
+                                class="bg-zinc-800 hover:bg-yellow-700/50 hover:border-yellow-600 py-1.5 px-2 rounded border border-zinc-700 text-left text-xs transition-all">
+                                🟡 Tachykardia & Spadek O2
+                            </button>
+                            <button onclick="loadScenario('arrest')"
+                                class="bg-zinc-800 hover:bg-purple-700/50 hover:border-purple-600 py-1.5 px-2 rounded border border-zinc-700 text-left text-xs transition-all text-purple-300">
+                                💀 Asystolia (śmierć)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <!-- HR Slider -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-green-500 font-semibold">Częstość akcji serca (HR)</span>
+                                <span id="slider-hr-val" class="font-mono font-bold">119 /min</span>
+                            </div>
+                            <input type="range" id="slider-hr" min="0" max="220" value="119"
+                                class="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-green-500"
+                                oninput="updateParamFromSlider('hr', this.value)" />
+                        </div>
+
+                        <!-- SpO2 Slider -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-yellow-500 font-semibold">Wysycenie tlenem (SpO2)</span>
+                                <span id="slider-spo2-val" class="font-mono font-bold">99 %</span>
+                            </div>
+                            <input type="range" id="slider-spo2" min="50" max="100" value="99"
+                                class="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-yellow-500"
+                                oninput="updateParamFromSlider('spo2', this.value)" />
+                        </div>
+
+                        <!-- etCO2 Slider -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-white font-semibold">Dwutlenek węgla (etCO2)</span>
+                                <span id="slider-etco2-val" class="font-mono font-bold">36 mmHg</span>
+                            </div>
+                            <input type="range" id="slider-etco2" min="0" max="80" value="36"
+                                class="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-zinc-300"
+                                oninput="updateParamFromSlider('etco2', this.value)" />
+                        </div>
+
+                        <!-- awRR Slider -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-zinc-300 font-semibold">Częstość oddechów (awRR)</span>
+                                <span id="slider-awrr-val" class="font-mono font-bold">40 /min</span>
+                            </div>
+                            <input type="range" id="slider-awrr" min="0" max="70" value="40"
+                                class="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-zinc-400"
+                                oninput="updateParamFromSlider('awrr', this.value)" />
+                        </div>
+
+                        <!-- NIBP Sliders -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-red-500">Ciśnienie Sys</span>
+                                    <span id="slider-bpsys-val" class="font-mono font-bold">60</span>
+                                </div>
+                                <input type="range" id="slider-bpsys" min="40" max="200" value="60"
+                                    class="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-red-500"
+                                    oninput="updateParamFromSlider('bpsys', this.value)" />
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-red-400">Ciśnienie Dia</span>
+                                    <span id="slider-bpdia-val" class="font-mono font-bold">40</span>
+                                </div>
+                                <input type="range" id="slider-bpdia" min="20" max="130" value="40"
+                                    class="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-red-400"
+                                    oninput="updateParamFromSlider('bpdia', this.value)" />
+                            </div>
+                        </div>
+
+                        <!-- Temperature Slider -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-green-550 font-semibold text-green-400">Temperatura (Tblood)</span>
+                                <span id="slider-temp-val" class="font-mono font-bold">99.0 °F</span>
+                            </div>
+                            <input type="range" id="slider-temp" min="940" max="1060" value="990"
+                                class="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-green-600"
+                                oninput="updateParamFromSlider('temp', this.value)" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: Alarm limits configuration -->
+                <div id="panel-alarms-tab" class="space-y-4 hidden text-xs">
+                    <div class="flex items-center justify-between bg-zinc-950 p-2 rounded border border-zinc-800">
+                        <span class="font-bold text-yellow-500">Globalne Alerty Głosowe/Sygnały</span>
+                        <button onclick="testAlarmSound()"
+                            class="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] border border-zinc-700">Testuj
+                            dźwięk MP3</button>
+                    </div>
+
+                    <div class="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                        <!-- HR Alarm limits -->
+                        <div class="p-2 bg-zinc-950 rounded border border-zinc-800 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold text-green-500">Alarm HR (EKG)</span>
+                                <input type="checkbox" id="chk-alarm-hr" checked class="w-4 h-4 accent-green-500"
+                                    onchange="toggleAlarmSwitch('hr', this.checked)">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-[11px]">
+                                <div>
+                                    <label class="text-zinc-400">Max limit:</label>
+                                    <input type="number" id="input-limit-hr-max" value="130"
+                                        class="w-full bg-zinc-900 border border-zinc-700 rounded p-1"
+                                        oninput="updateLimitValue('hr', 'max', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-zinc-400">Min limit:</label>
+                                    <input type="number" id="input-limit-hr-min" value="50"
+                                        class="w-full bg-zinc-900 border border-zinc-700 rounded p-1"
+                                        oninput="updateLimitValue('hr', 'min', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SpO2 Alarm limits -->
+                        <div class="p-2 bg-zinc-950 rounded border border-zinc-800 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold text-yellow-500">Alarm SpO2</span>
+                                <input type="checkbox" id="chk-alarm-spo2" checked class="w-4 h-4 accent-yellow-500"
+                                    onchange="toggleAlarmSwitch('spo2', this.checked)">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-[11px]">
+                                <div>
+                                    <label class="text-zinc-400">Max limit:</label>
+                                    <input type="number" id="input-limit-spo2-max" value="100"
+                                        class="w-full bg-zinc-900 border border-zinc-700 rounded p-1"
+                                        oninput="updateLimitValue('spo2', 'max', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-zinc-400">Min limit:</label>
+                                    <input type="number" id="input-limit-spo2-min" value="92"
+                                        class="w-full bg-zinc-900 border border-zinc-700 rounded p-1"
+                                        oninput="updateLimitValue('spo2', 'min', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- NIBP Alarm limits -->
+                        <div class="p-2 bg-zinc-950 rounded border border-zinc-800 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold text-red-500">Alarm NIBP (Sys/Dia)</span>
+                                <input type="checkbox" id="chk-alarm-nbp" checked class="w-4 h-4 accent-red-500"
+                                    onchange="toggleAlarmSwitch('nbp', this.checked)">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-[11px]">
+                                <div>
+                                    <label class="text-zinc-400">Max Sys:</label>
+                                    <input type="number" id="input-limit-bpsys-max" value="160"
+                                        class="w-full bg-zinc-900 border border-zinc-700 rounded p-1"
+                                        oninput="updateLimitValue('bpSys', 'max', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-zinc-400">Min Dia:</label>
+                                    <input type="number" id="input-limit-bpdia-min" value="60"
+                                        class="w-full bg-zinc-900 border border-zinc-700 rounded p-1"
+                                        oninput="updateLimitValue('bpDia', 'min', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- etCO2 Alarm limits -->
+                        <div class="p-2 bg-zinc-950 rounded border border-zinc-800 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold text-white">Alarm etCO2</span>
+                                <input type="checkbox" id="chk-alarm-etco2" checked class="w-4 h-4 accent-zinc-400"
+                                    onchange="toggleAlarmSwitch('etco2', this.checked)">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-[11px]">
+                                <div>
+                                    <label class="text-zinc-400">Max limit:</label>
+                                    <input type="number" id="input-limit-etco2-max" value="65"
+                                        class="w-full bg-zinc-900 border border-zinc-700 rounded p-1"
+                                        oninput="updateLimitValue('etco2', 'max', this.value)">
+                                </div>
+                                <div>
+                                    <label class="text-zinc-400">Min limit:</label>
+                                    <input type="number" id="input-limit-etco2-min" value="25"
+                                        class="w-full bg-zinc-900 border border-zinc-700 rounded p-1"
+                                        oninput="updateLimitValue('etco2', 'min', this.value)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Alarm Log Area -->
+                    <div class="space-y-1">
+                        <span class="font-bold text-zinc-400 uppercase tracking-wider text-[10px]">Rejestr zdarzeń
+                            alarmowych</span>
+                        <div id="alarm-log"
+                            class="h-24 bg-black border border-zinc-800 rounded p-2 overflow-y-auto text-[10px] font-mono space-y-1 text-red-400">
+                            <div class="text-zinc-500">[SYSTEM] Rozpoczęto nasłuch parametrów...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button onclick="toggleControlPanel()"
+                    class="w-full bg-zinc-800 text-white font-bold py-2 rounded hover:bg-zinc-700 transition-colors text-xs">
+                    Zatwierdź i Zamknij
+                </button>
+            </div>
+        </aside>
+
+        <script src="script.js"></script>
+    </body>
+</html>
